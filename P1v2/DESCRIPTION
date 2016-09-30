@@ -1,0 +1,14 @@
+Package: P1
+Type: Package
+Title: Diversity-dependence model under an EM framework
+Version: 0.1.0
+Author: person("Francisco", "Richter", email = "f.richter@rug.nl", role = c("aut", "cre"))
+Maintainer: Francico Richter <f.richter@rug.nl>
+Description: This package is an implementation of the theoritical statistical framework under the project 'Simultaneous estimation and selection of species diversification models'
+License: copyleft
+LazyData: TRUE
+Depends:
+    ape,
+    apTreeshape,
+    Matrix,
+    ggplot2
