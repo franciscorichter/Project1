@@ -1,3 +1,4 @@
+#' Does something
 phyl2 <- function(tt=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",printEv=FALSE,seed=1){
   set.seed(seed)
   reboot = 0
