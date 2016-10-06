@@ -18,39 +18,39 @@ B = cbind(BBB,llik_obt,llik_real)
 data.viewer()
 deducer()
 
+#
+# itt=100
+# tt=5
+# Vals = vector(mode='list',length = itt)
+# for (k in 1:itt){
+#   #print(k)
+#   s1 = phyl2(tt=tt, lambda0=0.82, mu0=0.47, K=Inf, seed=runif(1,1,10000))
+#   Vals[[k]]=data.frame(time=cumsum(s1$t),n=s1$n)
+# }
+#
+# #plot(approx(Vals[[6]]$time,Vals[[6]]$n))
+# #approx(Vals[[6]]$time,Vals[[6]]$n,xout = seq(0,15,by=0.1))
+#
+# AA = matrix(nrow=length(seq(0,tt,by=0.1)),ncol=itt)
+# for (i in 1:itt){
+#   AA[,i]=approx(Vals[[i]]$time,Vals[[i]]$n,xout = seq(0,tt,by=0.1))$y
+# }
+#
+# plot((seq(0,tt,by=0.1)-tt),rowMeans(AA, na.rm = TRUE, dims = 1))
+#
+#
+# vils = data.frame(time=cumsum(bt),n=c(2:length(bt),length(bt)))
+# A2 = approx(vils$time,vils$n,xout = seq(0,tt,by=0.1))$y
+# A3 = approx(dendroica, 2:(length(dendroica)+1),xout = seq(0,5,by=0.1))$y
+# a1 = data.frame(time=(seq(0,5,by=0.1)-5),val=rowMeans(AA, na.rm = TRUE, dims = 1))
+# a2 = data.frame(time=(seq(0,5,by=0.1)-5),val=A3,mu ='reconstructed phylogeny')
+# smp = rbind(a1,a2)
+# ggplot(smp,aes(x=time, y=val))+geom_smooth()+ylab('number of lineages (log)')+xlab('time (Myr)')+ scale_y_log10()+ggtitle('Dendroica')
+# plot(s$newick)
+#
+# data.frame(time=(seq(0,5,by=0.1)-5),val=rowMeans(AA, na.rm = TRUE, dims = 1),mu='complete phylogeny')
 
 itt=100
-tt=5
-Vals = vector(mode='list',length = itt)
-for (k in 1:itt){
-  #print(k)
-  s1 = phyl2(tt=tt, lambda0=0.82, mu0=0.47, K=Inf, seed=runif(1,1,10000))
-  Vals[[k]]=data.frame(time=cumsum(s1$t),n=s1$n)
-}
-
-#plot(approx(Vals[[6]]$time,Vals[[6]]$n))
-#approx(Vals[[6]]$time,Vals[[6]]$n,xout = seq(0,15,by=0.1))
-
-AA = matrix(nrow=length(seq(0,tt,by=0.1)),ncol=itt)
-for (i in 1:itt){
-  AA[,i]=approx(Vals[[i]]$time,Vals[[i]]$n,xout = seq(0,tt,by=0.1))$y
-}
-
-plot((seq(0,tt,by=0.1)-tt),rowMeans(AA, na.rm = TRUE, dims = 1))
-
-
-vils = data.frame(time=cumsum(bt),n=c(2:length(bt),length(bt)))
-A2 = approx(vils$time,vils$n,xout = seq(0,tt,by=0.1))$y
-A3 = approx(dendroica, 2:(length(dendroica)+1),xout = seq(0,5,by=0.1))$y
-a1 = data.frame(time=(seq(0,5,by=0.1)-5),val=rowMeans(AA, na.rm = TRUE, dims = 1))
-a2 = data.frame(time=(seq(0,5,by=0.1)-5),val=A3,mu ='reconstructed phylogeny')
-smp = rbind(a1,a2)
-ggplot(smp,aes(x=time, y=val))+geom_smooth()+ylab('number of lineages (log)')+xlab('time (Myr)')+ scale_y_log10()+ggtitle('Dendroica')
-plot(s$newick)
-
-data.frame(time=(seq(0,5,by=0.1)-5),val=rowMeans(AA, na.rm = TRUE, dims = 1),mu='complete phylogeny')
-
-itt=10000
 Vals = vector(mode='list',length = itt)
 for (k in 1:itt){
   #print(k)

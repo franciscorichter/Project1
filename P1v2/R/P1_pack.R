@@ -1,3 +1,273 @@
+phyl2 <- function(tt=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",printEv=FALSE,seed=1){
+  set.seed(seed)
+  reboot = 0
+  N = 1 # Number of species
+  i = 1
+  Tm = NULL
+  sumt = 0
+  sigma = 0
+  E = NULL # vector with 0 if extinction and 1 if speciation
+  n = NULL # vector with number of species at time t_i
+  newick = paste(sl[1],";",sep="")  # Newick tree
+  identf = data.frame(Spec="aa",Time=0)
+  while (sumt<tt){
+    if (model == "dd"){  #diversity-dependence model
+      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+      mu = mu0
+      lambda = rep(lambda,N)
+      mu = rep(mu,N)
+    }
+    s = sum(lambda)+sum(mu)
+    if (s == 0){break}
+    tm = rexp(1,s)  # waiting time of iteration i
+    if(tm+sumt>tt){break}
+    sumt = tm + sumt
+    prob = c(lambda,mu)/s  # Probability of extinctions and speciations
+    BD = sample(2*N,1,prob=prob)  # speciation/extinction & identification of the species.
+    n[i] = N
+    if(BD > N){   # Extinction
+      E[i] = 0
+      ## for newick output
+      species = identf[BD-N,1]
+      ind = regexpr(species,newick)[1] + 2
+      atm=sumt-identf[which(identf[,1]==species),2]
+      identf = identf[-(BD-N),]
+      newick = paste(substr(newick,1,ind),as.character(atm),substring(newick,ind+2),sep="")
+      #
+      N = N-1
+      if(printEv){print(paste("extinction in time",sumt, sep=" "))}
+    }else{  # Speciation
+      E[i] = 1
+      ## for newick output
+      species = as.character(identf[BD,1])
+      ind = regexpr(species,newick)[1]-1
+      atm=sumt-identf[which(identf[,1]==species),2]
+      newick = paste(substr(newick,1,ind),"(",substr(newick,ind+1,ind+4),",",sl[i+1],"):",as.character(atm),substring(newick,ind+5),sep="")
+      identf = rbind(identf,data.frame(Spec=substr(sl[i+1],1,2),Time=sumt))
+      identf[identf$Spec == species,2] = sumt
+      #
+      N = N+1
+      if(printEv){print(paste("speciation in time",sumt,sep=" "))}
+    }
+    if (N==0){ # In case all species got extinct: restart
+      reboot = reboot + 1
+      N = 1 # Number of species
+      i = 1
+      Tm = NULL
+      sumt = 0
+      sigma = 0
+      E = NULL # vector with 0 if extinction and 1 if speciation
+      n = NULL # vector with number of species at time t_i
+      newick = paste(sl[1],";",sep="")  # Newick tree
+      identf = data.frame(Spec="aa",Time=0)
+    }else { # Otherwise, update values and go to next iteration
+
+      Tm[i] = tm
+      sigma[i] = s  # sirve?
+      i<-i+1
+    }
+  }
+  vals = data.frame(time=cumsum(Tm),n=n)
+  newick = compphyl(newi=newick,identf=identf,sumt=sumt)
+  newick = read.tree(text=newick)
+  treeD = list(t=Tm, E=E, r=reboot, i=i, n=n, vals=vals, newick=newick)
+}
+
+
+
+## truncated exponential distribution
+itexp <- function(x, lambda, R) { -log(1-x*(1-exp(-R*lambda)))/lambda }
+rtexp <- function(n, lambda, R) { itexp(runif(n), lambda, R) }
+
+
+reconst_tree <-function(bt,pars,model="dd",seed = F){
+  bt = c(0,bt)
+  tp = sum(bt)
+  n_bt = length(bt)
+  E = rep(1,n_bt)
+  Nu = 2:(n_bt+1)
+  lambda0 = pars[1]
+  mu0 = pars[3]
+  K = (lambda0-mu0)/pars[2]
+  i=1
+ # t_fake = 0
+  tm_ext = 0
+  while (i < length(bt)){
+    if (seed) set.seed(i)
+    N = Nu[i] #esta no se necesita si se escribe asi abajo
+    if (model == "dd"){  #diversity-dependence model
+      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+      lambda = rep(lambda,N)
+    }
+    s = sum(lambda)
+    if (s == 0){
+      break}
+    tm = rexp(1,s)
+    if (tm < bt[i+1]){tm_ext = rexp(1,mu0)}
+    while(tm < bt[i+1] & (sum(bt[1:i])+tm+tm_ext) < tp){
+      #print(paste('new spec-ext at times',sum(bt[1:i])+tm,sum(bt[1:i])+tm+tm_ext))
+      up = update_tree(bt=bt, t_spe=tm, t_ext=tm_ext, pointer=i, E=E, Nu=Nu)
+      i = i+1
+      E = up$E
+      Nu = up$Nu
+      bt = up$bt
+      N = Nu[i]
+      if (model == "dd"){  #diversity-dependence model
+        lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+        lambda = rep(lambda,N)
+      }
+      s = sum(lambda)
+      if (s == 0){
+        break}
+      tm = rexp(1,s)
+      if (tm < bt[i+1]){tm_ext = rexp(1,mu0)}
+    }
+    i=i+1
+    #print(paste('nbranch=',length(bt),'iter',i))
+  }
+  return(list(t=bt,n=Nu,E=E))
+}
+
+reconst_tree2 <- function(bt,pars,model="dd",seed = F){
+  #bt = c(bt,tt-sum(bt))
+  bt = c(0,bt)
+  tp = sum(bt)
+  n_bt = length(bt)
+  E = rep(1,n_bt)
+  #Nu = c(2:n_bt,n_bt)
+  Nu = 2:(n_bt+1)
+  lambda0 = pars[1]
+  mu0 = pars[3]
+  K = (lambda0-mu0)/pars[2]
+  i=1 # this is related to all species
+  t_fake = 0
+  tm_ext = 0
+  while (i < length(bt)){
+    if (seed) set.seed(i)
+    N = Nu[i] #esta no se necesita si se escribe asi abajo
+    if (model == "dd"){  #diversity-dependence model
+      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+      lambda = rep(lambda,N)
+    }
+    s = sum(lambda)
+    if (s == 0){
+      #print('S=0!')
+      break}
+    ts = rexp(1,s)
+    tm=ts+t_fake
+    if (tm < bt[i+1]){
+      tm_ext = rexp(1,mu0)
+      if ((sum(bt[1:i])+tm+tm_ext) >= tp){
+        #print(paste('fake species at', (sum(bt[1:i])+tm)))
+        t_fake = tm
+      }else{t_fake = 0}
+    }else{t_fake=0}
+    while(tm < bt[i+1] & (sum(bt[1:i])+tm+tm_ext) < tp){
+      #print(paste('new spec-ext at times',sum(bt[1:i])+tm,sum(bt[1:i])+tm+tm_ext))
+      up = update_tree(bt=bt, t_spe=tm, t_ext=tm_ext, pointer=i, E=E, Nu=Nu)
+      i = i+1
+      E = up$E
+      #print(Nu)
+      Nu = up$Nu
+      bt = up$bt
+      N = Nu[i]
+      if (model == "dd"){  #diversity-dependence model
+        lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+        lambda = rep(lambda,N)
+      }
+      s = sum(lambda)
+      if (s == 0){
+        #print('S=0!')
+        break}
+      ts = rexp(1,s)
+      tm=ts+t_fake
+      if (tm < bt[i+1]){
+        tm_ext = rexp(1,mu0)
+        if ((sum(bt[1:i])+tm_ext) >= tp){
+         # print(paste('fake species at', sum(bt[1:i])+tm))
+          t_fake = tm
+        }else {t_fake=0}
+      }
+    }
+    if(t_fake == 0) i=i+1
+    #print(paste('nbranch=',length(bt),'iter',i))
+  }
+  return(list(t=bt,n=Nu,E=E))
+}
+
+update_tree <- function(bt, t_spe, t_ext, pointer, E, Nu){
+  #TODO add newick format to output
+  i = pointer
+  #adding speciation
+  if(length(bt)>(i+1)){
+    last_bit = bt[(i+2):length(bt)]
+  }
+  else{
+    last_bit = NULL
+  }
+  bt = c(bt[1:i],t_spe,bt[(i+1)]-t_spe,last_bit)
+  E = c(E[1:i],1,E[(i+1):length(E)])
+  Nu = c(Nu[1:i],Nu[i:length(Nu)]+1)
+  #adding extinction
+  n_ext_cum = sum(bt[1:i+1]) + t_ext
+  i = i + 1
+  E = c(E[cumsum(bt)<n_ext_cum],0,E[cumsum(bt)>n_ext_cum])
+  Nu = c(Nu[cumsum(bt)<n_ext_cum],Nu[length(Nu[cumsum(bt)<n_ext_cum])]-1,Nu[cumsum(bt)>n_ext_cum] - 1)
+  if(length(bt[cumsum(bt)>n_ext_cum])>1){
+    last_bit = bt[cumsum(bt)>n_ext_cum][2:length(bt[cumsum(bt)>n_ext_cum])]
+  }
+  else{
+    last_bit = NULL
+  }
+  bt = c(bt[cumsum(bt)<n_ext_cum],n_ext_cum-sum(bt[cumsum(bt)<n_ext_cum]),bt[cumsum(bt)>n_ext_cum][1]-(n_ext_cum-sum(bt[cumsum(bt)<n_ext_cum])),last_bit) #including the new extinction time
+  return(list(bt=bt,E=E,Nu=Nu))
+}
+
+llik_st = function(setoftrees,pars){
+  m = length(setoftrees)
+  l = NULL
+  for(i in 1:m){
+    s = setoftrees[[i]]
+    l[i] = llik(b=pars,n=s$n,E=s$E,t=s$t)
+  }
+  L = sum(l)
+  return(L)
+}
+
+
+mle_dd_setoftrees <- function(setoftrees,draw=T){
+  num = NULL
+  dem = NULL
+  for (i in 1:length(setoftrees)){
+    s = setoftrees[[i]]
+    num[i] = sum(1-s$E)
+    dem[i] = sum(s$t*s$n)
+  }
+  mu = sum(num)/sum(dem)
+  lambda=seq(0.01,2,by=0.02)
+  grid = length(lambda)
+  y = NULL
+  Beta = NULL
+  g = NULL
+  for (i in 1:grid){
+    beta = seq(0,0.025 ,by=0.0005) #this 40 need to be changed
+    #beta = beta[2:length(beta)]
+    for (j in 1:length(beta)){
+      y[j] = llik_st(setoftrees,pars=c(lambda[i],beta[j],mu))
+    }
+    g[i] = min(y[!is.na(y)])
+    #g[i] = optim(0,llik,)
+    Beta[i] = beta[y==min(y[!is.na(y)])]
+
+  }
+  if(draw) plot(lambda,Beta)
+  #plot(lambda,g)
+  l = lambda
+  lambda = lambda[g==min(g)]
+  beta = Beta[g==min(g)]
+  return(list(lambda=lambda,beta=beta,mu=mu,setoflambda=l,setofbeta=Beta))
+}
+
 
 llik = function(b,n,E,t){
   sigma = n*(b[1]-b[2]*n + b[3]) #n-dimentional
@@ -90,9 +360,7 @@ mle_dd <- function(s,draw=T){
     g[i] = min(y[!is.na(y)])
     #g[i] = optim(0,llik,)
     Beta[i] = beta[y==min(y[!is.na(y)])]
-
   }
-
   if(draw) plot(lambda,Beta)
   #plot(lambda,g)
   l = lambda
@@ -302,217 +570,3 @@ phylo2p <- function(tree,ct){
   t = t[1:(length(t)-1)]
   return(list(t=t,E=E,n=n))
 }
-
-phyl2 <- function(tt=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",printEv=FALSE,seed=1){
-  set.seed(seed)
-  reboot = 0
-  N = 1 # Number of species
-  i = 1
-  Tm = NULL
-  sumt = 0
-  sigma = 0
-  E = NULL # vector with 0 if extinction and 1 if speciation
-  n = NULL # vector with number of species at time t_i
-  newick = paste(sl[1],";",sep="")  # Newick tree
-  identf = data.frame(Spec="aa",Time=0)
-  while (sumt<tt){
-    if (model == "dd"){  #diversity-dependence model
-      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
-      mu = mu0
-      lambda = rep(lambda,N)
-      mu = rep(mu,N)
-    }
-    s = sum(lambda)+sum(mu)
-    if (s == 0){break}
-    tm = rexp(1,s)  # waiting time of iteration i
-    if(tm+sumt>tt){break}
-    sumt = tm + sumt
-    prob = c(lambda,mu)/s  # Probability of extinctions and speciations
-    BD = sample(2*N,1,prob=prob)  # speciation/extinction & identification of the species.
-    n[i] = N
-    if(BD > N){   # Extinction
-      E[i] = 0
-      ## for newick output
-      species = identf[BD-N,1]
-      ind = regexpr(species,newick)[1] + 2
-      atm=sumt-identf[which(identf[,1]==species),2]
-      identf = identf[-(BD-N),]
-      newick = paste(substr(newick,1,ind),as.character(atm),substring(newick,ind+2),sep="")
-      #
-      N = N-1
-      if(printEv){print(paste("extinction in time",sumt, sep=" "))}
-    }else{  # Speciation
-      E[i] = 1
-      ## for newick output
-      species = as.character(identf[BD,1])
-      ind = regexpr(species,newick)[1]-1
-      atm=sumt-identf[which(identf[,1]==species),2]
-      newick = paste(substr(newick,1,ind),"(",substr(newick,ind+1,ind+4),",",sl[i+1],"):",as.character(atm),substring(newick,ind+5),sep="")
-      identf = rbind(identf,data.frame(Spec=substr(sl[i+1],1,2),Time=sumt))
-      identf[identf$Spec == species,2] = sumt
-      #
-      N = N+1
-      if(printEv){print(paste("speciation in time",sumt,sep=" "))}
-    }
-    if (N==0){ # In case all species got extinct: restart
-      reboot = reboot + 1
-      N = 1 # Number of species
-      i = 1
-      Tm = NULL
-      sumt = 0
-      sigma = 0
-      E = NULL # vector with 0 if extinction and 1 if speciation
-      n = NULL # vector with number of species at time t_i
-      newick = paste(sl[1],";",sep="")  # Newick tree
-      identf = data.frame(Spec="aa",Time=0)
-    }else { # Otherwise, update values and go to next iteration
-
-      Tm[i] = tm
-      sigma[i] = s  # sirve?
-      i<-i+1
-    }
-  }
-  vals = data.frame(time=cumsum(Tm),n=n)
-  newick = compphyl(newi=newick,identf=identf,sumt=sumt)
-  newick = read.tree(text=newick)
-  treeD = list(t=Tm, E=E, r=reboot, i=i, n=n, vals=vals, newick=newick)
-}
-
-
-
-## truncated exponential distribution
-itexp <- function(x, lambda, R) { -log(1-x*(1-exp(-R*lambda)))/lambda }
-rtexp <- function(n, lambda, R) { itexp(runif(n), lambda, R) }
-
-
-reconst_tree <- function(bt,pars,model="dd",tt,seed = F){
-  bt = c(bt,tt-sum(bt))
-  n_bt = length(bt)
-  E = rep(1,n_bt)
-  Nu = c(2:n_bt,n_bt)
-  lambda0 = pars[1]
-  mu0 = pars[3]
-  K = (lambda0-mu0)/pars[2]
-  i=1 # this is related to all species
-  while (i < length(bt)){
-    if (seed) set.seed(i)
-    tm = bt[i]
-    N = Nu[i]
-    if (model == "dd"){  #diversity-dependence model
-      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
-      lambda = rep(lambda,N)
-    }
-    s = sum(lambda)   #  +sum(mu)?
-    if (s == 0){break}
-    tm = rexp(1,s)
-    while(tm < bt[i+1]){
-      if(length(bt)>(i+1)){
-        last_bit = bt[(i+2):length(bt)]
-      }
-      else{
-        last_bit = NULL
-      }
-      bt = c(bt[1:i],tm,bt[(i+1)]-tm,last_bit)
-      E = c(E[1:i],1,E[(i+1):length(E)])
-      Nu = c(Nu[1:i],Nu[i:length(Nu)]+1)
-      i = i + 1
-      R = tt - sum(bt[1:i])
-      n_ext = rtexp(1,mu0,R)
-      n_ext_cum = sum(bt[1:i]) + n_ext
-      E = c(E[cumsum(bt)<n_ext_cum],0,E[cumsum(bt)>n_ext_cum])
-      Nu = c(Nu[cumsum(bt)<n_ext_cum],Nu[cumsum(bt)<n_ext_cum][length(Nu[cumsum(bt)<n_ext_cum])]-1,Nu[cumsum(bt)>n_ext_cum] - 1)
-      if(length(bt[cumsum(bt)>n_ext_cum])>1){
-        last_bit = bt[cumsum(bt)>n_ext_cum][2:length(bt[cumsum(bt)>n_ext_cum])]
-      }
-      else{
-        last_bit = NULL
-      }
-      bt = c(bt[cumsum(bt)<n_ext_cum],n_ext_cum-sum(bt[cumsum(bt)<n_ext_cum]),bt[cumsum(bt)>n_ext_cum][1]-(n_ext_cum-sum(bt[cumsum(bt)<n_ext_cum])),last_bit) #including the new extinction time
-      N = Nu[i]
-      if (model == "dd"){  #diversity-dependence model parameters
-        lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
-        lambda = rep(lambda,N)
-      }
-      s = sum(lambda)   #  +sum(mu)
-      if (s == 0){break}
-      tm = rexp(1,s)
-      j = j+1
-    }
-    i = i+1
-  }
-  return(list(t=bt,n=Nu,E=E))
-}
-
-update_tree <- function(bt,t_spe,t_ext,pointer){
-  i=pointer
-  #adding speciation
-  if(length(bt)>(i+1)){
-    last_bit = bt[(i+2):length(bt)]
-  }
-  else{
-    last_bit = NULL
-  }
-  bt = c(bt[1:i],tm,bt[(i+1)]-tm,last_bit)
-  E = c(E[1:i],1,E[(i+1):length(E)])
-  Nu = c(Nu[1:i],Nu[i:length(Nu)]+1)
-  #adding extinction
-  n_ext_cum = sum(bt[1:i+1]) + t_ext
-  i = i + 1
-  E = c(E[cumsum(bt)<n_ext_cum],0,E[cumsum(bt)>n_ext_cum])
-  Nu = c(Nu[cumsum(bt)<n_ext_cum],Nu[cumsum(bt)<n_ext_cum][length(Nu[cumsum(bt)<n_ext_cum])]-1,Nu[cumsum(bt)>n_ext_cum] - 1)
-  if(length(bt[cumsum(bt)>n_ext_cum])>1){
-    last_bit = bt[cumsum(bt)>n_ext_cum][2:length(bt[cumsum(bt)>n_ext_cum])]
-  }
-  else{
-    last_bit = NULL
-  }
-  bt = c(bt[cumsum(bt)<n_ext_cum],n_ext_cum-sum(bt[cumsum(bt)<n_ext_cum]),bt[cumsum(bt)>n_ext_cum][1]-(n_ext_cum-sum(bt[cumsum(bt)<n_ext_cum])),last_bit) #including the new extinction time
-  return(list(bt=bt,E=E,Nu=Nu))
-}
-
-llik_st = function(setoftrees,pars){
-  m = length(setoftrees)
-  l = NULL
-  for(i in 1:m){
-    s = setoftrees[[i]]
-    l[i] = llik(b=pars,n=s$n,E=s$E,t=s$t)
-  }
-  L = sum(l)
-  return(L)
-}
-
-
-mle_dd_setoftrees <- function(setoftrees,draw=T){
-  num = NULL
-  dem = NULL
-  for (i in 1:length(setoftrees)){
-    s = setoftrees[[i]]
-    num[i] = sum(1-s$E)
-    dem[i] = sum(s$t*s$n)
-  }
-  mu = sum(num)/sum(dem)
-  lambda=seq(0.01,4,by=0.03)
-  grid = length(lambda)
-  y = NULL
-  Beta = NULL
-  g = NULL
-  for (i in 1:grid){
-    beta = seq(0,0.025 ,by=0.0001) #this 40 need to be changed
-    #beta = beta[2:length(beta)]
-    for (j in 1:length(beta)){
-      y[j] = llik_st(setoftrees,pars=c(lambda[i],beta[j],mu))
-    }
-    g[i] = min(y[!is.na(y)])
-    #g[i] = optim(0,llik,)
-    Beta[i] = beta[y==min(y[!is.na(y)])]
-
-  }
-
-  if(draw) plot(lambda,Beta)
-  #plot(lambda,g)
-  l = lambda
-  lambda = lambda[g==min(g)]
-  beta = Beta[g==min(g)]
-  return(list(lambda=lambda,beta=beta,mu=mu,setoflambda=l,setofbeta=Beta))
-}
-
