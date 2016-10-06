@@ -10,6 +10,8 @@ s <- phyl2(tt=15,seed=seed)
 plot(s$newick)
 p <- mle_dd(s,draw=F)
 c(p$lambda,(p$lambda-p$mu)/p$beta,p$mu)
+p <- subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)
+c(p$par[1],(p$par[1]-p$par[3])/p$par[2],p$par[3])
 pa=c(p$lambda,p$beta,p$mu)
 #lm(p$setoflambda~p$setofbeta)
 

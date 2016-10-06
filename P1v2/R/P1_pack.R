@@ -273,8 +273,12 @@ llik_st = function(setoftrees,pars){
 
 llik = function(b,n,E,t){
   sigma = n*(b[1]-b[2]*n + b[3]) #n-dimentional
-  rho = b[1]*E-b[2]*n*E+b[3]*(1-E)
+  rho = pmax(b[1]*E-b[2]*n*E+b[3]*(1-E),0)
+  #if(min(rho)<0){print(paste(min(rho),'help'))}
   l = -sum(-sigma*t+log(rho))
+  if(min(b)<0){l = Inf}
+  #print(l)
+  #print(b)
   return(l)
 }
 
