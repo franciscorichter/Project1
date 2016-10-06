@@ -1,4 +1,4 @@
-#' Does something
+#generate phylogenetic tree under dd model
 phyl2 <- function(tt=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",printEv=FALSE,seed=1){
   set.seed(seed)
   reboot = 0
@@ -80,55 +80,7 @@ phyl2 <- function(tt=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",print
 itexp <- function(x, lambda, R) { -log(1-x*(1-exp(-R*lambda)))/lambda }
 rtexp <- function(n, lambda, R) { itexp(runif(n), lambda, R) }
 
-
-reconst_tree <-function(bt,pars,model="dd",seed = F){
-  bt = c(0,bt)
-  tp = sum(bt)
-  n_bt = length(bt)
-  E = rep(1,n_bt)
-  Nu = 2:(n_bt+1)
-  lambda0 = pars[1]
-  mu0 = pars[3]
-  K = (lambda0-mu0)/pars[2]
-  i=1
- # t_fake = 0
-  tm_ext = 0
-  while (i < length(bt)){
-    if (seed) set.seed(i)
-    N = Nu[i] #esta no se necesita si se escribe asi abajo
-    if (model == "dd"){  #diversity-dependence model
-      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
-      lambda = rep(lambda,N)
-    }
-    s = sum(lambda)
-    if (s == 0){
-      break}
-    tm = rexp(1,s)
-    if (tm < bt[i+1]){tm_ext = rexp(1,mu0)}
-    while(tm < bt[i+1] & (sum(bt[1:i])+tm+tm_ext) < tp){
-      #print(paste('new spec-ext at times',sum(bt[1:i])+tm,sum(bt[1:i])+tm+tm_ext))
-      up = update_tree(bt=bt, t_spe=tm, t_ext=tm_ext, pointer=i, E=E, Nu=Nu)
-      i = i+1
-      E = up$E
-      Nu = up$Nu
-      bt = up$bt
-      N = Nu[i]
-      if (model == "dd"){  #diversity-dependence model
-        lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
-        lambda = rep(lambda,N)
-      }
-      s = sum(lambda)
-      if (s == 0){
-        break}
-      tm = rexp(1,s)
-      if (tm < bt[i+1]){tm_ext = rexp(1,mu0)}
-    }
-    i=i+1
-    #print(paste('nbranch=',length(bt),'iter',i))
-  }
-  return(list(t=bt,n=Nu,E=E))
-}
-
+# reconstruct tree
 reconst_tree2 <- function(bt,pars,model="dd",seed = F){
   #bt = c(bt,tt-sum(bt))
   bt = c(0,bt)
@@ -196,6 +148,88 @@ reconst_tree2 <- function(bt,pars,model="dd",seed = F){
   return(list(t=bt,n=Nu,E=E))
 }
 
+#mle for a set of trees
+mle_dd_setoftrees <- function(setoftrees,draw=T){
+  num = NULL
+  dem = NULL
+  for (i in 1:length(setoftrees)){
+    s = setoftrees[[i]]
+    num[i] = sum(1-s$E)
+    dem[i] = sum(s$t*s$n)
+  }
+  mu = sum(num)/sum(dem)
+  lambda=seq(0.01,2,by=0.02)
+  grid = length(lambda)
+  y = NULL
+  Beta = NULL
+  g = NULL
+  for (i in 1:grid){
+    beta = seq(0,0.025 ,by=0.0005) #this 40 need to be changed
+    #beta = beta[2:length(beta)]
+    for (j in 1:length(beta)){
+      y[j] = llik_st(setoftrees,pars=c(lambda[i],beta[j],mu))
+    }
+    g[i] = min(y[!is.na(y)])
+    #g[i] = optim(0,llik,)
+    Beta[i] = beta[y==min(y[!is.na(y)])]
+
+  }
+  if(draw) plot(lambda,Beta)
+  #plot(lambda,g)
+  l = lambda
+  lambda = lambda[g==min(g)]
+  beta = Beta[g==min(g)]
+  return(list(lambda=lambda,beta=beta,mu=mu,setoflambda=l,setofbeta=Beta))
+}
+
+reconst_tree <-function(bt,pars,model="dd",seed = F){
+  bt = c(0,bt)
+  tp = sum(bt)
+  n_bt = length(bt)
+  E = rep(1,n_bt)
+  Nu = 2:(n_bt+1)
+  lambda0 = pars[1]
+  mu0 = pars[3]
+  K = (lambda0-mu0)/pars[2]
+  i=1
+  # t_fake = 0
+  tm_ext = 0
+  while (i < length(bt)){
+    if (seed) set.seed(i)
+    N = Nu[i] #esta no se necesita si se escribe asi abajo
+    if (model == "dd"){  #diversity-dependence model
+      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+      lambda = rep(lambda,N)
+    }
+    s = sum(lambda)
+    if (s == 0){
+      break}
+    tm = rexp(1,s)
+    if (tm < bt[i+1]){tm_ext = rexp(1,mu0)}
+    while(tm < bt[i+1] & (sum(bt[1:i])+tm+tm_ext) < tp){
+      #print(paste('new spec-ext at times',sum(bt[1:i])+tm,sum(bt[1:i])+tm+tm_ext))
+      up = update_tree(bt=bt, t_spe=tm, t_ext=tm_ext, pointer=i, E=E, Nu=Nu)
+      i = i+1
+      E = up$E
+      Nu = up$Nu
+      bt = up$bt
+      N = Nu[i]
+      if (model == "dd"){  #diversity-dependence model
+        lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+        lambda = rep(lambda,N)
+      }
+      s = sum(lambda)
+      if (s == 0){
+        break}
+      tm = rexp(1,s)
+      if (tm < bt[i+1]){tm_ext = rexp(1,mu0)}
+    }
+    i=i+1
+    #print(paste('nbranch=',length(bt),'iter',i))
+  }
+  return(list(t=bt,n=Nu,E=E))
+}
+
 update_tree <- function(bt, t_spe, t_ext, pointer, E, Nu){
   #TODO add newick format to output
   i = pointer
@@ -235,39 +269,6 @@ llik_st = function(setoftrees,pars){
   return(L)
 }
 
-
-mle_dd_setoftrees <- function(setoftrees,draw=T){
-  num = NULL
-  dem = NULL
-  for (i in 1:length(setoftrees)){
-    s = setoftrees[[i]]
-    num[i] = sum(1-s$E)
-    dem[i] = sum(s$t*s$n)
-  }
-  mu = sum(num)/sum(dem)
-  lambda=seq(0.01,2,by=0.02)
-  grid = length(lambda)
-  y = NULL
-  Beta = NULL
-  g = NULL
-  for (i in 1:grid){
-    beta = seq(0,0.025 ,by=0.0005) #this 40 need to be changed
-    #beta = beta[2:length(beta)]
-    for (j in 1:length(beta)){
-      y[j] = llik_st(setoftrees,pars=c(lambda[i],beta[j],mu))
-    }
-    g[i] = min(y[!is.na(y)])
-    #g[i] = optim(0,llik,)
-    Beta[i] = beta[y==min(y[!is.na(y)])]
-
-  }
-  if(draw) plot(lambda,Beta)
-  #plot(lambda,g)
-  l = lambda
-  lambda = lambda[g==min(g)]
-  beta = Beta[g==min(g)]
-  return(list(lambda=lambda,beta=beta,mu=mu,setoflambda=l,setofbeta=Beta))
-}
 
 
 llik = function(b,n,E,t){

@@ -1,31 +1,14 @@
-# Diversity-dependence model applied to EM. (30/9/16)
+# Diversity-dependence model with EM approach.
 
-First PhD project by Francisco.
+First PhD project.
 
 
-I will have to use often:
+Important functions on this package are: 
 
-First download:
+phyl2 -> to generate complete phylo trees
+mle_dd -> to calculate mle of complete trees
+reconst_tree2 -> to reconstruct trees
+mle_dd_setoftrees -> mle calculation for a set of trees
 
-```
-git clone https://github.com/franciscorichter/Project1
-```
+Please see P1usage.R if you do not know how to start.
 
-Update:
-
-```
-git pull
-```
-
-After modifying a file, commit the changes:
-
-```
-git add --all :/
-git commit -m "My changes"
-```
-
-Upload to GitHub:
-
-```
-git push
-```

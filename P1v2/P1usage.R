@@ -1,5 +1,5 @@
 rm(list=ls())
-load(file = 'AA.RData')
+#load(file = 'AA.RData')
 library(P1)
 
 #set.seed(11)
@@ -37,8 +37,8 @@ for (i in 1:n_it){
   P[i,] = pars}
   S[[i]] = rt
 }
-#library('reshape2')
-#library('ggplot2')
+library('reshape2')
+library('ggplot2')
 melted = melt(a, id.vars="t")
 p <- ggplot(data=melted, aes(x=t, y=value, group=variable)) + geom_line() + ylab('# Lineages') + xlab('Time') + geom_line(data=melted[melted$variable=='V2',],aes(x=t, y=value),color='blue') +ggtitle(paste('seed',seed,'(mle)'))#  + geom_line(data=data.frame(t=seq(0,15,by=0.1),variable="mean",value=rowMeans(AA, na.rm = TRUE, dims = 1)),aes(x=t, y=value),color='green')
 print(p)
