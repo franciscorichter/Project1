@@ -1,3 +1,9 @@
+library(reshape2)
+library(ggplot2)
+library(subplex)
+library(gridExtra)
+
+
 rm(list=ls())
 #load(file = 'AA.RData')
 library(P1)
@@ -8,11 +14,9 @@ seed = round(runif(1,1,100000))
 #seed = 7
 s <- phyl2(tt=15,seed=seed)
 plot(s$newick)
-p <- mle_dd(s,draw=F)
-c(p$lambda,(p$lambda-p$mu)/p$beta,p$mu)
 p <- subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)
 c(p$par[1],(p$par[1]-p$par[3])/p$par[2],p$par[3])
-pa=c(p$lambda,p$beta,p$mu)
+pa=c(p$par[1],p$par[2],p$par[3])
 #lm(p$setoflambda~p$setofbeta)
 
 dropex <- drop.fossil(s$newick)
@@ -22,9 +26,9 @@ p2 <- mle_dd(s2,draw=F)
 c(p2$lambda,p2$beta,p2$mu)
 
 rt = reconst_tree2(bt=s2$t,pars=c(0.8,0.0175,0.1))
-p3 <- mle_dd(s=rt,draw=F)
-c(p3$lambda,(p3$lambda-p3$mu)/p3$beta,p3$mu) # estimation of parameters of the reconstructed tree
-
+p3 <- subplex(par = c(8,0.175,0.9),fn = llik,n = rt$n, E = rt$E, t = rt$t)$par
+c(p$par[1],(p$par[1]-p$par[3])/p$par[2],p$par[3]) # estimation of parameters of the reconstructed tree
+#P = matrix(nrow=n_it,ncol=4)
 a = data.frame(t=seq(0,15,by=0.1))
 a[[2]] = approx(cumsum(s$t),s$n,xou=seq(0,15,by=0.1))$y
 n_it = 100
@@ -34,13 +38,12 @@ for (i in 1:n_it){
   rt = reconst_tree2(bt=s2$t,pars=pa)
   a[[i+2]] = approx(cumsum(rt$t),rt$n,xou=seq(0,15,by=0.1))$y
   if(estimations){
-  pars = mle_dd(rt,draw=F)
-  pars = c(pars$lambda,pars$beta,pars$mu,(pars$lambda-pars$mu)/pars$beta)
-  P[i,] = pars}
+  pars = subplex(par = c(8,0.175,0.9),fn = llik,n = rt$n, E = rt$E, t = rt$t)$par
+  pars2 = c(p$par[1],pars[2],p$par[3],(p$par[1]-p$par[3])/p$par[2])
+  P[i,] = pars2}
   S[[i]] = rt
 }
-library('reshape2')
-library('ggplot2')
+
 melted = melt(a, id.vars="t")
 p <- ggplot(data=melted, aes(x=t, y=value, group=variable)) + geom_line() + ylab('# Lineages') + xlab('Time') + geom_line(data=melted[melted$variable=='V2',],aes(x=t, y=value),color='blue') +ggtitle(paste('seed',seed,'(mle)'))#  + geom_line(data=data.frame(t=seq(0,15,by=0.1),variable="mean",value=rowMeans(AA, na.rm = TRUE, dims = 1)),aes(x=t, y=value),color='green')
 print(p)
@@ -49,10 +52,10 @@ c(pars$lambda,pars$beta,pars$mu,(pars$lambda-pars$mu)/pars$beta)
 
 #par(mfrow=c(1,3))
 if(estimations){
-plot1 = ggplot(NULL, aes(x=P[,1])) + geom_histogram()+xlab(paste(expression(lambda),"0"))+geom_vline(xintercept=0.8)
-plot2 = ggplot(NULL, aes(x=P[,2])) + geom_histogram()+xlab(paste(expression(beta),"0"))+geom_vline(xintercept=0.0175)
-plot3 = ggplot(NULL, aes(x=P[,3])) + geom_histogram()+xlab(paste(expression(mu),"0"))+geom_vline(xintercept=0.1)
-plot4 = ggplot(NULL, aes(x=P[,4])) + geom_histogram()+xlab(paste(expression(K)))+geom_vline(xintercept=40)
+plot1 = ggplot(NULL, aes(x=P[,1])) + geom_histogram()+xlab(paste(expression(lambda),"0"))+geom_vline(xintercept=pa[1])
+plot2 = ggplot(NULL, aes(x=P[,2])) + geom_histogram()+xlab(paste(expression(beta),"0"))+geom_vline(xintercept=pa[2])
+plot3 = ggplot(NULL, aes(x=P[,3])) + geom_histogram()+xlab(paste(expression(mu),"0"))+geom_vline(xintercept=pa[3])
+plot4 = ggplot(NULL, aes(x=P[,4])) + geom_histogram()+xlab(paste(expression(K)))+geom_vline(xintercept=(pa[1]-pa[3])/pa[2])
 library(grid)
 grid.newpage()
 vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
@@ -65,38 +68,146 @@ print(plot4, vp = vplayout(1, 4))
 
 
 ## EM
-s <- phyl2(seed=7)
+s <- phyl2(seed=8)
 plot(s$newick)
+p <- subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)
+c(p$par[1],(p$par[1]-p$par[3])/p$par[2],p$par[3])
+pa=c(p$par[1],p$par[2],p$par[3])
+
 
 dropex <- drop.fossil(s$newick)
 plot(dropex)
 s2 <- phylo2p(tree=dropex)
 
 ptm <- proc.time()
-init_pars = c(2,0.025,0.8)
+init_pars = pa
 pars=init_pars
-n_it = 30
+npar=init_pars
+n_it = 100
 P = matrix(nrow=n_it,ncol=4)
 bt = s2$t
 for (i in 1:n_it){
-  print(c(pars[1],pars[2],pars[3]))
-  n_it = 100
+  print(pars)
+  n_it = 20
   S = vector('list',length=n_it)
-  ptm <- proc.time()
+  P = matrix(nrow=n_it,ncol=4)
   for (j in 1:n_it){
-    rec_tree = reconst_tree(bt=bt,pars=pars)
+    rec_tree = reconst_tree2(bt=bt,pars=npar)
+    pars = subplex(par = c(8,0.175,0.9),fn = llik,n = rec_tree$n, E = rec_tree$E, t = rec_tree$t)$par
+    #pars2 = c(p$par[1],pars[2],p$par[3],(p$par[1]-p$par[3])/p$par[2])
+    P[j,] = c(pars,(pars[1]-pars[3])/pars[2])
     #print(length(rec_tree$t))
     S[[j]] = rec_tree
   }
+  npar = colMeans(P)[1:3]
+  print(paste('npar es',npar))
   #print(proc.time() - ptm)
   #ptm <- proc.time()
   #print('optimization')
-  pars = mle_dd_setoftrees(S)
-  #print(proc.time() - ptm)
-  pars = c(pars$lambda,pars$beta,pars$mu,(pars$lambda-pars$mu)/pars$beta)
-  P[i,] = pars
+  pars = subplex(par = c(8,0.175,0.9),fn = llik_st , setoftrees = S)$par
+  #mle_dd_setoftrees(S)
+  print(paste('-loglikelihood equal to',llik_st(pars,setoftrees = S)))
+  pars1 = c(pars[1],pars[2],pars[3],(pars[1]-pars[3])/pars[2])
+  P[i,] = pars1
 }
+
+
+  plot1 = ggplot(NULL, aes(x=P[,1])) + geom_histogram()+xlab(paste(expression(lambda),"0"))+geom_vline(xintercept=pa[1])
+  plot2 = ggplot(NULL, aes(x=P[,2])) + geom_histogram()+xlab(paste(expression(beta),"0"))+geom_vline(xintercept=pa[2])
+  plot3 = ggplot(NULL, aes(x=P[,3])) + geom_histogram()+xlab(paste(expression(mu),"0"))+geom_vline(xintercept=pa[3])
+  plot4 = ggplot(NULL, aes(x=P[,4])) + geom_histogram()+xlab(paste(expression(K)))+geom_vline(xintercept=(pa[1]-pa[3])/pa[2])
+  library(grid)
+  grid.newpage()
+  vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+  pushViewport(viewport(layout = grid.layout(1, 4)))
+  print(plot1, vp = vplayout(1, 1))
+  print(plot2, vp = vplayout(1, 2))
+  print(plot3, vp = vplayout(1, 3))
+  print(plot4, vp = vplayout(1, 4))
+
+
+
+ptm = proc.time()
+mle_dd_setoftrees(S)
 proc.time() - ptm
+
+ptm = proc.time()
+subplex(par = c(8,0.175,0.9),fn = llik_st , setoftrees = S)$par
+proc.time() - ptm
+
+
+#exp2
+
+n_it = 1000
+HH = matrix(nrow=n_it,ncol=4)
+P = matrix(nrow=n_it,ncol=4)
+PR = matrix(nrow=n_it,ncol=4)
+for (i in 1:n_it){
+  s = phyl2(seed=runif(1,1,1000000))
+  p <- subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)
+  pa=c(p$par[1],p$par[2],p$par[3])
+  dropex <- drop.fossil(s$newick)
+  PR[i,] = c(pa[1],pa[2],pa[3],(pa[1]-pa[3])/pa[2])
+  s2 <- phylo2p(tree=dropex)
+  n_it = 100
+  bt = s2$t
+  S = vector('list',length=n_it)
+  H = matrix(nrow=n_it,ncol=3)
+    for (j in 1:n_it){
+      rec_tree = reconst_tree2(bt=bt,pars=pa)
+      pars = subplex(par = c(8,0.175,0.9),fn = llik,n = rec_tree$n, E = rec_tree$E, t = rec_tree$t)$par
+      H[j,] = pars
+      S[[j]] = rec_tree
+    }
+    npar = colMeans(H)
+    pars = subplex(par = c(8,0.175,0.9),fn = llik_st , setoftrees = S)$par
+    HH[i,] = c(npar[1],npar[2],npar[3],(npar[1]-npar[3])/npar[2])
+    pars1 = c(pars[1],pars[2],pars[3],(pars[1]-pars[3])/pars[2])
+    P[i,] = pars1
+}
+
+
+a = data.frame(t=1:n_it)
+a[[2]] = P[,1]
+a[[3]] = HH[,1]
+melted = melt(a, id.vars="t")
+p <- ggplot(data=melted, aes(x=t, color=variable)) + geom_histogram() + ylab('# Lineages') + xlab('Time')# + geom_line(data=melted[melted$variable=='V2',],aes(x=t, y=value),color='blue') +ggtitle(paste('seed',seed,'(mle)'))#  + geom_line(data=data.frame(t=seq(0,15,by=0.1),variable="mean",value=rowMeans(AA, na.rm = TRUE, dims = 1)),aes(x=t, y=value),color='green')
+print(p)
+
+plot(PR[,1],P[,1])
+abline(0,1)
+
+
+par_est_vis <- function(P,par){
+  if (par == 1){
+    int = 0.8 #change for general case
+    parname = 'lambda'
+  }
+  if (par==2){
+    int= 0.0175
+    parname = 'beta'
+  }
+  if (par == 3){
+    int = 0.1
+    parname = 'mu'
+  }
+  if (par ==4){
+    int = 40
+    parname = 'K'
+    P = P[P[,4]<100,]
+  }
+hist_top <- ggplot()+geom_histogram(aes(P[,par])) + geom_vline(xintercept=int) + xlab('MLE from incomplete tree')
+empty <- ggplot()+geom_point(aes(1,1), colour="white")+
+  theme(axis.ticks=element_blank(),
+        panel.background=element_blank(),
+        axis.text.x=element_blank(), axis.text.y=element_blank(),
+        axis.title.x=element_blank(), axis.title.y=element_blank())
+
+scatter <- ggplot()+geom_point(aes(P[,par], PR[,par]))+ geom_abline(intercept = 0, slope = 1) + ylab(TeX(paste('$\\hat{\\',parname,'}_{C}$',sep='')))+xlab(TeX(paste('$\\hat{\\',parname,'}_{I}$',sep='')))
+hist_right <- ggplot()+geom_histogram(aes(PR[,par]))+coord_flip()+ geom_vline(xintercept=int) +xlab('MLE of complete tree')
+
+grid.arrange(hist_top, empty, scatter, hist_right, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+}
 
 
 ## exp0.1

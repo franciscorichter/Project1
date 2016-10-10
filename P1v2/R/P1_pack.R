@@ -174,8 +174,8 @@ mle_dd_setoftrees <- function(setoftrees,draw=T){
     Beta[i] = beta[y==min(y[!is.na(y)])]
 
   }
-  if(draw) plot(lambda,Beta)
-  #plot(lambda,g)
+  plot(lambda,Beta)
+  plot(lambda,g)
   l = lambda
   lambda = lambda[g==min(g)]
   beta = Beta[g==min(g)]
@@ -258,7 +258,7 @@ update_tree <- function(bt, t_spe, t_ext, pointer, E, Nu){
   return(list(bt=bt,E=E,Nu=Nu))
 }
 
-llik_st = function(setoftrees,pars){
+llik_st = function(pars,setoftrees){
   m = length(setoftrees)
   l = NULL
   for(i in 1:m){
