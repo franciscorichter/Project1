@@ -101,8 +101,9 @@ reconst_tree2 <- function(bt,pars,model="dd",seed = F){
     if (model == "dd"){  #diversity-dependence model
       lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
       lambda = rep(lambda,N)
+      mu = rep(mu0,N)
     }
-    s = sum(lambda)
+    s = sum(lambda)+sum(mu)
     if (s == 0){
       #print('S=0!')
       break}
@@ -127,8 +128,9 @@ reconst_tree2 <- function(bt,pars,model="dd",seed = F){
       if (model == "dd"){  #diversity-dependence model
         lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
         lambda = rep(lambda,N)
+        mu = rep(mu0,N)
       }
-      s = sum(lambda)
+      s = sum(lambda)+sum(mu)
       if (s == 0){
         #print('S=0!')
         break}
@@ -229,6 +231,71 @@ reconst_tree <-function(bt,pars,model="dd",seed = F){
   }
   return(list(t=bt,n=Nu,E=E))
 }
+
+reconst_tree3 <- function(bt,pars,model="dd",seed = F){
+  #bt = c(bt,tt-sum(bt))
+  bt = c(0,bt)
+  tp = sum(bt)
+  n_bt = length(bt)
+  E = rep(1,n_bt)
+  #Nu = c(2:n_bt,n_bt)
+  Nu = 2:(n_bt+1)
+  lambda0 = pars[1]
+  mu0 = pars[3]
+  K = (lambda0-mu0)/pars[2]
+  i=1 # this is related to all species
+  tm_ext = 0
+  while (i < length(bt)){
+    if (seed) set.seed(i)
+    N = Nu[i] #esta no se necesita si se escribe asi abajo
+    if (model == "dd"){  #diversity-dependence model
+      lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+      lambda = rep(lambda,N)
+      mu = rep(pars[3],N)
+    }
+    s = sum(lambda)+sum(mu)
+    if (s == 0){
+      #print('S=0!')
+      break}
+    ts = rexp(1,s)
+    tm=ts
+    prob = c(lambda,mu)/s  # Probability of extinctions and speciations
+    BD = sample(2*N,1,prob=prob)
+    if (tm < bt[i+1] & BD < (N+1)){
+      tm_ext = rexp(1,mu0)
+    }
+    while(tm < bt[i+1] & (sum(bt[1:i])+tm+tm_ext) < tp & BD < (N+1)){
+      #print(paste('new spec-ext at times',sum(bt[1:i])+tm,sum(bt[1:i])+tm+tm_ext))
+      up = update_tree(bt=bt, t_spe=tm, t_ext=tm_ext, pointer=i, E=E, Nu=Nu)
+      i = i+1
+      E = up$E
+      #print(Nu)
+      Nu = up$Nu
+      bt = up$bt
+      N = Nu[i]
+      if (model == "dd"){  #diversity-dependence model
+        lambda = max(0,lambda0 - (lambda0-mu0)*N/K)
+        lambda = rep(lambda,N)
+        mu = rep(pars[3],N)
+      }
+      s = sum(lambda)+sum(mu)
+      if (s == 0){
+        #print('S=0!')
+        break}
+      ts = rexp(1,s)
+      tm=ts
+      prob = c(lambda,mu)/s  # Probability of extinctions and speciations
+      BD = sample(2*N,1,prob=prob)
+      if (tm < bt[i+1] & BD < (N+1)){
+        tm_ext = rexp(1,mu0)
+      }
+    }
+    i=i+1
+    #print(paste('nbranch=',length(bt),'iter',i))
+  }
+  return(list(t=bt,n=Nu,E=E))
+}
+
 
 update_tree <- function(bt, t_spe, t_ext, pointer, E, Nu){
   #TODO add newick format to output

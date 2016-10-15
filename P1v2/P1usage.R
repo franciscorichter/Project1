@@ -9,7 +9,7 @@ rm(list=ls())
 library(P1)
 
 #set.seed(11)
-estimations = F
+estimations = T
 seed = round(runif(1,1,100000))
 #seed = 7
 s <- phyl2(tt=15,seed=seed)
@@ -22,12 +22,10 @@ pa=c(p$par[1],p$par[2],p$par[3])
 dropex <- drop.fossil(s$newick)
 plot(dropex)
 s2 <- phylo2p(tree=dropex,ct=ct)
-p2 <- mle_dd(s2,draw=F)
-c(p2$lambda,p2$beta,p2$mu)
 
-rt = reconst_tree2(bt=s2$t,pars=c(0.8,0.0175,0.1))
+rt = reconst_tree3(bt=s2$t,pars=pa)
 p3 <- subplex(par = c(8,0.175,0.9),fn = llik,n = rt$n, E = rt$E, t = rt$t)$par
-c(p$par[1],(p$par[1]-p$par[3])/p$par[2],p$par[3]) # estimation of parameters of the reconstructed tree
+c(p3[1],(p3[1]-p3[3])/p3[2],p3[3]) # estimation of parameters of the reconstructed tree
 #P = matrix(nrow=n_it,ncol=4)
 a = data.frame(t=seq(0,15,by=0.1))
 a[[2]] = approx(cumsum(s$t),s$n,xou=seq(0,15,by=0.1))$y
@@ -491,3 +489,44 @@ grid.arrange(hist_top, empty, scatter, hist_right, ncol=2, nrow=2, widths=c(4, 1
 #   ptm <- proc.time()
 # }
 # proc.time() - ptm
+
+
+a = matrix(nrow=100,ncol=8)
+for (j in 1:100){
+
+s = phyl2(seed = round(runif(1,1,10000)))
+pars = subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)$par
+#a1 = matrix(nrow = 100, ncol = 4)
+a2 = matrix(nrow = 100, ncol = 4)
+#a3 = matrix(nrow = 100, ncol = 4)
+#a4 = matrix(nrow = 100, ncol = 4)
+s2 = drop.fossil(s$newick)
+s2 = phylo2p(s2)
+for (i in 1:100){
+#  rt1 = reconst_tree(bt = s2$t,pars = pars)
+#  a1[i,] = c(length(rt1$t),subplex(par = c(8,0.175,0.9),fn = llik,n = rt1$n, E = rt1$E, t = rt1$t)$par)
+  rt2 = reconst_tree2(bt = s2$t,pars = pars)
+  a2[i,] = c(length(rt2$t),subplex(par = c(8,0.175,0.9),fn = llik,n = rt2$n, E = rt2$E, t = rt2$t)$par)
+#  rt3 = reconst_tree3(bt = s2$t,pars = pars)
+#  a3[i,] = c(length(rt3$t),subplex(par = c(8,0.175,0.9),fn = llik,n = rt3$n, E = rt3$E, t = rt3$t)$par)
+}
+
+#ggplot(data = data.frame(a1), aes(x=X1,y=X2)) + geom_point() + geom_vline(xintercept = length(s$t)) + geom_hline(yintercept = pars[1])
+#ggplot(data = data.frame(a2), aes(x=X1,y=X2)) + geom_point()+ geom_vline(xintercept = length(s$t)) + geom_hline(yintercept = pars[1])+ geom_hline(yintercept = 0.8,color='blue')+geom_hline(yintercept=mean(a2[,2]),color='green')
+#ggplot(data = data.frame(a3), aes(x=X1,y=X2)) + geom_point()+ geom_vline(xintercept = length(s$t)) + geom_hline(yintercept = pa[1])
+a[j,] = c(colMeans(a2),pars,length(s$t))
+
+}
+
+ggplot(data = data.frame(a),aes(x=X2,X5)) + geom_point() + geom_abline(intercept = 0, slope = 1)
+ggplot(data = data.frame(a),aes(x=X4,X7)) + geom_point() + geom_abline(intercept = 0, slope = 1)
+ggplot(data = data.frame(a),aes(x=X3,X6)) + geom_point() + geom_abline(intercept = 0, slope = 1)
+
+ggplot(data = data.frame(a),aes(x=X1,X8)) + geom_point() + geom_abline(intercept = 0, slope = 1)
+
+
+
+
+
+
+
