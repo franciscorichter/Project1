@@ -2,7 +2,7 @@ library(reshape2)
 library(ggplot2)
 library(subplex)
 library(gridExtra)
-
+library(latex2exp)
 
 rm(list=ls())
 #load(file = 'AA.RData')
@@ -18,26 +18,36 @@ p <- subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)
 c(p$par[1],(p$par[1]-p$par[3])/p$par[2],p$par[3])
 pa=c(p$par[1],p$par[2],p$par[3])
 #lm(p$setoflambda~p$setofbeta)
-
 dropex <- drop.fossil(s$newick)
 plot(dropex)
 s2 <- phylo2p(tree=dropex,ct=ct)
-
 rt = reconst_tree3(bt=s2$t,pars=pa)
 p3 <- subplex(par = c(8,0.175,0.9),fn = llik,n = rt$n, E = rt$E, t = rt$t)$par
 c(p3[1],(p3[1]-p3[3])/p3[2],p3[3]) # estimation of parameters of the reconstructed tree
 #P = matrix(nrow=n_it,ncol=4)
+
+
+
+seed=7
+s <- phyl2(seed=7)
+plot(s$newick)
+p <- subplex(par = c(8,0.175,0.9),fn = llik,n = s$n, E = s$E, t = s$t)
+pa=c(p$par[1],p$par[2],p$par[3])
+dropex <- drop.fossil(s$newick)
+plot(dropex)
+s2 <- phylo2p(tree=dropex,ct=ct)
+
 a = data.frame(t=seq(0,15,by=0.1))
 a[[2]] = approx(cumsum(s$t),s$n,xou=seq(0,15,by=0.1))$y
 n_it = 100
 if(estimations) P = matrix(nrow=n_it,ncol=4)
 S = vector('list',length=n_it)
 for (i in 1:n_it){
-  rt = reconst_tree2(bt=s2$t,pars=pa)
+  rt = reconst_tree5(bt=s2$t,pars=pa)
   a[[i+2]] = approx(cumsum(rt$t),rt$n,xou=seq(0,15,by=0.1))$y
   if(estimations){
   pars = subplex(par = c(8,0.175,0.9),fn = llik,n = rt$n, E = rt$E, t = rt$t)$par
-  pars2 = c(p$par[1],pars[2],p$par[3],(p$par[1]-p$par[3])/p$par[2])
+  pars2 = c(pars[1],pars[2],pars[3],(pars[1]-pars[3])/pars[2])
   P[i,] = pars2}
   S[[i]] = rt
 }
@@ -85,7 +95,6 @@ n_it = 100
 P = matrix(nrow=n_it,ncol=4)
 bt = s2$t
 for (i in 1:n_it){
-  print(pars)
   n_it = 20
   S = vector('list',length=n_it)
   P = matrix(nrow=n_it,ncol=4)
@@ -136,7 +145,7 @@ proc.time() - ptm
 
 #exp2
 
-n_it = 1000
+n_it = 10
 HH = matrix(nrow=n_it,ncol=4)
 P = matrix(nrow=n_it,ncol=4)
 PR = matrix(nrow=n_it,ncol=4)
@@ -152,7 +161,7 @@ for (i in 1:n_it){
   S = vector('list',length=n_it)
   H = matrix(nrow=n_it,ncol=3)
     for (j in 1:n_it){
-      rec_tree = reconst_tree2(bt=bt,pars=pa)
+      rec_tree = reconst_tree5(bt=bt,pars=pa)
       pars = subplex(par = c(8,0.175,0.9),fn = llik,n = rec_tree$n, E = rec_tree$E, t = rec_tree$t)$par
       H[j,] = pars
       S[[j]] = rec_tree
@@ -164,17 +173,10 @@ for (i in 1:n_it){
     P[i,] = pars1
 }
 
-
-a = data.frame(t=1:n_it)
-a[[2]] = P[,1]
-a[[3]] = HH[,1]
-melted = melt(a, id.vars="t")
-p <- ggplot(data=melted, aes(x=t, color=variable)) + geom_histogram() + ylab('# Lineages') + xlab('Time')# + geom_line(data=melted[melted$variable=='V2',],aes(x=t, y=value),color='blue') +ggtitle(paste('seed',seed,'(mle)'))#  + geom_line(data=data.frame(t=seq(0,15,by=0.1),variable="mean",value=rowMeans(AA, na.rm = TRUE, dims = 1)),aes(x=t, y=value),color='green')
-print(p)
-
-plot(PR[,1],P[,1])
-abline(0,1)
-
+# esto tiene un PR que requiere ser revisado
+par_est_vis(P,1)
+par_est_vis(P,2)
+par_est_vis(P,3)
 
 par_est_vis <- function(P,par){
   if (par == 1){

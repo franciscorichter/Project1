@@ -1,9 +1,9 @@
 library(P1)
 s = phyl2(seed=runif(1,1,100000))
 par(mfrow=(c(1,2))) # 1 row but 2 plot panels
-plot(s$newick,direction = 'upwards',show.tip.label=FALSE,edge.width=2,edge.color = 'purple',type="fan")
+plot(s$newick,direction = 'upwards',show.tip.label=FALSE,edge.width=4,edge.color = 'purple',type="fan")
 dropex <- drop.fossil(s$newick) # drop extinct species
-plot(dropex,direction = 'upwards',show.tip.label=FALSE,edge.width=2,edge.color = 'purple',type="fan")
+plot(dropex,direction = 'upwards',show.tip.label=FALSE,edge.width=4,edge.color = 'purple',type="fan")
 axisPhylo()
 
 
