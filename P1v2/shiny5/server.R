@@ -8,92 +8,34 @@ library(Matrix)
 library(parallel)
 library(foreach)
 library(doParallel)
-
+library(subplex)
+##########################################
 
 shinyServer(function(input, output) {
 
-  dataset <- reactive({
-    diamonds[sample(nrow(diamonds), input$sampleSize),]
+  randomVals <- eventReactive(input$goButton, {
+    seed=round(runif(1,1,10000000))
+    phyl2(tt=input$tt, lambda0=input$lambda,mu0=input$mu,K=input$K, seed=seed)
+    
   })
-  sim <- eventReactive(input$goButton, {
-    phyl2(lambda0=input$lambda,mu0=input$mu,K=(input$lambda-input$mu)/input$beta)$newick
+  output$distPlot <- renderPlot({
+    if (input$drop){
+      dropex <- drop.fossil(randomVals()$newick) # drop extinct species
+      plot(dropex, show.tip.label = input$tip, edge.color = input$color, edge.width = input$width, type=input$type, no.margin = input$margin)
+    }
+    else{
+      plot(randomVals()$newick,show.tip.label = input$tip, edge.color = input$color, edge.width = input$width,type=input$type,no.margin=input$margin)
+    }
+    if (input$axis) axisPhylo()
   })
-
-  output$plot <- renderPlot({
-
-    # p <- ggplot(dataset(), aes_string(x=input$x, y=input$y)) + geom_point()
-    #
-    # if (input$color != 'None')
-    #   p <- p + aes_string(color=input$color)
-    #
-    # facets <- paste(input$facet_row, '~', input$facet_col)
-    # if (facets != '. ~ .')
-    #   p <- p + facet_grid(facets)
-    #
-
-    # if (input$smooth)
-    #   p <- p + geom_smooth()
-    y = 0
-   if(input$var=='lambda'){
-     sc = input$scale
-      x=seq(0.01,to=sc,by=0.01)
-      y = foreach(i = 1:length(x),
-              .combine = 'c',
-              .multicombine = TRUE) %dopar% {
-             llik_st(pars=c(x[i],input$beta,input$mu),setoftrees=S)
-      }
-      set = data.frame(x,y)
-      set = set[!is.na(set$y),]
-      p = ggplot(set, aes(x, y))+geom_point()}
-    if(input$var=='beta'){
-      x=seq(0.001,0.2,by=0.001)
-      y = foreach(i = 1:length(x),
-              .combine = 'c',
-              .multicombine = TRUE) %do% {
-            llik_st(pars=c(input$lambda,x[i],input$mu),setoftrees=S)
-      }
-      set = data.frame(x,y)
-      set = set[!is.na(set$y),]
-      p = ggplot(set, aes(x, y))+geom_point()}
-    if(input$var=='mu'){
-      x=seq(0.001,0.5,by=0.01)
-      for (i in 1:length(x)){
-        y[i] = llik_st(pars=c(input$lambda,input$beta,x[i]),setoftrees=S)
-      }
-      set = data.frame(x,y)
-      set = set[!is.na(set$y),]
-      p = ggplot(set, aes(x, y))+geom_point()}
-    p <- p +labs(x=input$var,y="log-likelihood") # + ggtitle('llik')
-     if (input$smooth)
-       p <- p + geom_smooth()
-     if (input$jitter)
-       p <- p + geom_jitter()
-
-    print(p)
+  output$ltt <- renderPlot({
+    ltt(randomVals()$newick)
+  })
+  
+  output$Text  <- renderText({
+    p <- subplex(par = c(8,0.175,0.9),fn = llik,n = randomVals()$n, E = randomVals()$E, t = randomVals()$t)
+    paste("The ML estimations for this tree would be",paste('lambda=',as.character(p$par[1])),paste('K=',as.character((p$par[1]-p$par[3])/p$par[2])),paste('mu=',as.character(p$par[3])),sep='\n')
 
   })
-
-  #s <- sim()
-#  ntext <- eventReactive(input$goButton, {
-#    input$n
-#  })
-
-  output$nText <- renderText({
-    ntext()
-  })
-  #output$plot3 <- renderPlot({
-  #  plot(sim())
-  #})
-  output$plot3 <- renderPlot({
-    plot(s$newick)
-  })
-  output$plot2 <- renderPlot({
-    dropex <- drop.fossil(s$newick) # drop extinct species
-    plot(dropex)
-  })
-
-
-
-
 
 })

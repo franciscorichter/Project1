@@ -15,7 +15,6 @@ P_2 <- function(n=2,t_0=0.7,t_1=0.1,par=c(0.8,0.0175,0.1)){
 ## list of functions
 #x <- sapply(1:10, function(i) function(x) exp(x*i) ); x[[2]](3)
 
-
 P_3 <- function(n=3,t_0=0.7,t_1=0.1,par=c(0.8,0.0175,0.1)){
   lambda = par[1]-par[2]*1:n
   mu = rep(par[3],n)
