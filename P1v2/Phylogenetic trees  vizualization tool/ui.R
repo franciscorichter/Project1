@@ -1,6 +1,3 @@
-library(shiny)
-library(ggplot2)
-library(phytools)
 
 shinyUI(
   fluidPage(
@@ -25,7 +22,7 @@ shinyUI(
       selectInput('margin','Margin',c(F,T)),
       selectInput('axis','Include time axis',c(F,T)),
       selectInput('type','Type of phylogeny',c('phylogram','cladogram','fan','unrooted','radial'))
-      
+
     ),
     sidebarPanel(
       verbatimTextOutput("Text")
