@@ -1,4 +1,4 @@
-st = sim_phyl()
+st = sim_phyl(ct=2,seed=8)
 plot(st$newick)
 st2 = drop.fossil(st$newick)
 plot(st2)

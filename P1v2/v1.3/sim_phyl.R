@@ -68,7 +68,9 @@ sim_phyl <- function(ct=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",pr
       i<-i+1
     }
   }
-  newick = compphyl(newi=newick,identf=identf,sumt=sumt)
+  newick = compphyl(newi=newick,identf=identf,ct=ct)
+  newi = newick
   newick = read.tree(text=newick)
-  return(list(t=Tm, E=E, i=i, n=n, newick=newick, br = cumsum(Tm)))
+  Tm[i] = ct-sum(Tm)
+  return(list(t=Tm, E=E, n=n, newick=newick, br = cumsum(Tm), newi = newi))
 }

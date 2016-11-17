@@ -29,7 +29,7 @@ rec_tree <- function(wt, pars, ct){
     t_spe = rexp(1,s)
     if (t_spe < cwt){
       t_ext = rexp(1,mu0) # this is not as general as trees with trait-dependance species yet,
-      up = update
+      up = update_tree(wt=wt,t_spe = t_spe, t_ext = t_ext, E = ...)
     }
   }
 
