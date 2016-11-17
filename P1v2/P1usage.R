@@ -43,7 +43,7 @@ n_it = 100
 if(estimations) P = matrix(nrow=n_it,ncol=4)
 S = vector('list',length=n_it)
 for (i in 1:n_it){
-  rt = reconst_tree5(bt=s2$t,pars=pa)
+  rt = reconst_tree(bt=s2$t,pars=pa)
   a[[i+2]] = approx(cumsum(rt$t),rt$n,xou=seq(0,15,by=0.1))$y
   if(estimations){
   pars = subplex(par = c(8,0.175,0.9),fn = llik,n = rt$n, E = rt$E, t = rt$t)$par

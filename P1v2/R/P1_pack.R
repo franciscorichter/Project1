@@ -64,7 +64,6 @@ phyl2 <- function(tt=15, lambda0=0.8, mu0=0.1, K=40, draw=TRUE, model="dd",print
     }else { # Otherwise, update values and go to next iteration
 
       Tm[i] = tm
-      sigma[i] = s  # sirve?
       i<-i+1
     }
   }
