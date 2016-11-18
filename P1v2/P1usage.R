@@ -174,7 +174,7 @@ for (i in 1:n_it){
 }
 
 # esto tiene un PR que requiere ser revisado
-par_est_vis(P,1)
+par_est_vis(MP,1)
 par_est_vis(P,2)
 par_est_vis(P,3)
 

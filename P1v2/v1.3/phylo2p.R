@@ -1,4 +1,4 @@
-phylo2p <- function(tree,ct){
+phylo2p <- function(tree){
   # to map newick trees into ther xxxx format
   ltt = ltt.plot.coords(tree)
   t = diff(ltt[,1])
